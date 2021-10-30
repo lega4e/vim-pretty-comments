@@ -1,0 +1,21 @@
+Tasks:
+
+- [ ] Correction: centering by total line width (add separate option?)
+- [ ] Feature: option 'fillright'
+- [ ] Feature: option 'level'
+- [ ] Feature: profiles (different sets in same filetype with easy calling)
+- [ ] Feature: reload settings
+- [ ] Feature: append after/before current line
+- [ ] Feature: wrapped comments
+- [ ] Feature: replacement simple comments (recognize comments, extract text, execute)
+- [ ] Feature: handle spaces before text (levels)
+- [ ] Feature: handle empty line
+- [ ] Add detailed comments
+- [ ] Describe about core feature in RAEDME
+- [ ] Write documentation
+- [ ] Feature: fields in comment (date, time, filename, author, email...)
+- [ ] Feature: update comments with fields
+- [ ] Feature: recogrnizing, parsing and handling comments
+- [ ] Feature: multiline comments
+- [ ] Feature: pictured comments (ascii arts)
+- [ ] Feature: headers

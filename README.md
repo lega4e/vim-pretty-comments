@@ -2,14 +2,14 @@
 
 Plugin has't been written yet.
 
-This plugin is needed to insert pretty comments into your code like this:
+This plugin allows to insert pretty comments into your code like this:
 
 ```c
-//////////////////// Filled usual comments by '/' ///////////////////
+////////////////// Oneline comment filled by '/' ////////////////////
 
 // #########################   Centered comment   ##############################
 
-// *** The comment *****************************************
+// *** Stared comment **************************************
 
 /* ----------------------------- The comment -------------------------------- */
 

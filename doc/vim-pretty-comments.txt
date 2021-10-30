@@ -1,1 +1,5 @@
-No docs :(
+*vim-pretty-comments.txt*
+
+        The vim plugin for insert pretty comments~
+
+vim-pretty-comments                                       *vim-pretty-comments*

@@ -1,1 +1,1 @@
-nnoremap <leader>dq :echom 'Plugin works'<cr>
+nnoremap <leader>cp :call nvxvpc#InsertComment()<cr>

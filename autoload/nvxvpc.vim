@@ -47,7 +47,7 @@ endfun
 
 
 
-fun s:GenerateComment(sets, text)
+fun! s:GenerateComment(sets, text)
 	let l:beg  = a:sets.beg
 	let l:beg .= repeat(' ', a:sets.margin)
 
@@ -57,28 +57,33 @@ fun s:GenerateComment(sets, text)
 		let l:end .= a:sets.end
 	endif
 
-	let l:cnt = ''
 	if a:sets.align ==# 'left'
-		let l:cnt .= repeat(a:sets.filler, a:sets.padding)
+		let l:cnt  = repeat(a:sets.filler, a:sets.padding)
 		let l:cnt .= repeat(' ', a:sets.bound)
 		let l:cnt .= a:text
 		let l:cnt .= repeat(' ', a:sets.bound)
-		let l:len  = a:sets.width - len(l:beg) - len(l:end) - len(l:cnt)
+		let l:len  = a:sets.width    - strchars(l:beg) -
+\		             strchars(l:end) - strchars(l:cnt)
 		let l:cnt .= repeat(a:sets.filler, l:len)
+
 	elseif a:sets.align ==# 'right'
-		let l:cnt = repeat(a:sets.filler, a:sets.padding) . l:cnt
+		let l:cnt = repeat(a:sets.filler, a:sets.padding)
 		let l:cnt = repeat(' ', a:sets.bound) . l:cnt
 		let l:cnt = a:text . l:cnt
 		let l:cnt = repeat(' ', a:sets.bound) . l:cnt
-		let l:len = a:sets.width - len(l:beg) - len(l:end) - len(l:cnt)
+		let l:len = a:sets.width    - strchars(l:beg) -
+\		            strchars(l:end) - strchars(l:cnt)
 		let l:cnt = repeat(a:sets.filler, l:len) . l:cnt
+
 	elseif a:sets.align ==# 'center'
-		let l:cnt .= repeat(' ', a:sets.bound)
+		let l:cnt  = repeat(' ', a:sets.bound)
 		let l:cnt .= a:text
 		let l:cnt .= repeat(' ', a:sets.bound)
-		let l:len  = a:sets.width - len(l:beg) - len(l:end) - len(l:cnt)
+		let l:len  = a:sets.width    - strchars(l:beg) -
+\		             strchars(l:end) - strchars(l:cnt)
 		let l:cnt  = repeat(a:sets.filler, l:len/2) . l:cnt .
-		           \ repeat(a:sets.filler, l:len - l:len/2)
+\		             repeat(a:sets.filler, l:len - l:len/2)
+
 	else
 		throw 'Unknown alignement: ' . a:sets.align
 	endif

@@ -1,9 +1,9 @@
 "
-"  Vim plugin 'pretty comments'                                      ,-,
-"  Author: nvxden                                              _.-=;~ /_
-"  Github: https://github.com/nvxden/vim-pretty-comments    _-~   '     ;.
-"  Created: 2021/10/30                                  _.-~     '   .-~-~`-._
-"  License: MIT                                   _.--~~:.             --.____88
+" Vim plugin 'pretty comments'                                       ,-,
+" Author:  nvxden                                              _.-=;~ /_
+" Github:  https://github.com/nvxden/vim-pretty-comments    _-~   '     ;.
+" Created: 2021/10/30                                   _.-~     '   .-~-~`-._
+" License: MIT                                    _.--~~:.             --.____88
 "                               ____.........--~~~. .' .  .        _..-------~~
 "                      _..--~~~~               .' .'             ,'
 "                  _.-~                        .       .     ` ,'
@@ -468,39 +468,98 @@ let s:delimiters = {
 " prefixes to global variables that is used to configure plugin
 "
 " Use:
-"   let g:<s:setting_prfx>_<s:default_prfx>_<option_name> = <your_value>
+"   let g:<s:setting_word>_<s:default_word>_<option_name> = <your_value>
+"   let g:<s:setting_word>_<s:default_word>_<s:dictnry_word> = {
+"   \ '<option_name>' : <value>,
+"   \ ...
+"   \ '<option_name>' : <value>,
+"   \}
+"
+" Or (for certain type of file):
+" 	let g:<s:setting_word>_<&filetype>_<option_name> = <your_value>
+"   let g:<s:setting_word>_<&filetype>_<s:dictnry_word> = {
+"   \ '<option_name>' : <value>,
+"   \ ...
+"   \ '<option_name>' : <value>,
+"   \}
+"
+" Note: separate options overrides options into dictinories
 "
 " For example:
 "   let g:nvxvpc_default_filler = '*'
 "   let g:nvxvpc_default_bound  = 2
+"   let g:nvxvpc_default_settings = {
+"   \ 'margin' : 2,
+"   \ 'filler' : '-',
+"   }
 "
-let s:setting_prfx = 'nvxvpc'
-let s:default_prfx = 'default'
+" (As result filler will be '*')
+"
+" Or:
+" 	let g:nvxvpc_cpp_filler = '*'
+" 	let g:nvxvpc_rust_settings = {
+" 	\ 'altfiller' : '^',
+" 	\ 'levelstep' : 2,
+" 	\ 'bound'     : 3,
+" 	}
+"
 
-let s:standard = {
-	\	'type':      'default',
+let s:setting_word = 'nvxvpc'
+let s:default_word = 'default'
+let s:dictnry_word = 'settings'
+
+fun! s:ApplyExternalSettings(dict, ftname)
+	let l:dict = a:dict
+
+	let l:custsets = 'g:' . join([s:setting_word, a:ftname, s:dictnry_word], '_')
+	if exists(l:custsets)
+		let l:custsets = eval(l:custsets)
+		call extend(l:dict, l:custsets)
+	endif
+
+	for l:key in keys(l:dict)
+		let l:setting = 'g:' . join([s:setting_word, a:ftname, l:key], '_')
+		if exists(l:setting)
+			let l:dict[l:key] = eval(l:setting)
+		endif
+	endfor
+endfun
+
+
+
+" Options
+"
+" type      - values: def, alt (for cpp: // or /* %s */)
+" closedef  - if 1 def comment closed: # --- %s --- #
+" align     - values: left, right, center
+" fillright - if 0 comment look like this: # --- %s
+" width     - totally width of comment
+" filler    - if filler = '~' then: # ~~~ %s ~~~
+" altfiller - filler for type 'alt'
+" margin    - space after comment opening sign
+" padding   - number of filler signs after margin spaces
+" bound     - space before text
+" levelstep - indent per level
+
+let s:settings = {
+	\	'type':      'def',
 	\	'closedef':  0,
 	\	'align':     'center',
 	\	'fillright': 1,
-	\	'width':     78,
+	\	'width':     &tw > 0 ? &tw : 78,
 	\	'filler':    '~',
+	\	'altfiller': 'NONE',
 	\	'margin':    1,
 	\	'padding':   2,
 	\	'bound':     1,
-	\	'leveled':   0,
 	\	'levelstep': 4,
 \}
 
-for s:key in keys(s:standard)
-	let s:setting = join(['g:' . s:setting_prfx, s:default_prfx, s:key], '_')
-	if exists(s:setting)
-		let s:standard[s:key] = eval(s:setting)
-	endif
-endfor
+" This dictionary will be filled when user call the
+" comment inserting in file that had't been called yet
+let s:ft_settings = { '' : s:settings }
 
-if &textwidth > 0
-	let s:standard.width = &textwidth
-endif
+call <SID>ApplyExternalSettings(s:settings, 'default')
 
 
 
@@ -512,16 +571,16 @@ endif
 
 fun! nvxvpc#InsertComment(...)
 	if a:0 ==# 1
-		let l:sets = a:1
-		call extend(l:sets, s:standard, 'keep')
+		let l:sets  = deepcopy(<SID>GetSettings())
+		call extend(l:sets, a:1)
 	elseif a:0 ==# 0
-		let l:sets = s:standard
+		let l:sets = <SID>GetSettings()
 	else
-		throw 'Invalid count of argument'
+		throw 'Invalid number of argument'
 	endif
 
 	let l:line = line('.')
-	let l:text = getline('.')
+	let l:text = trim(getline('.'))
 	let l:com  = <SID>GenerateComment(l:sets, l:text)
 	call append(l:line, l:com)
 	normal! dd
@@ -529,7 +588,7 @@ endfun
 
 
 fun! nvxvpc#SetOption(key, value)
-	let s:standard[a:key] = a:value
+	let s:settings[a:key] = a:value
 endfun
 
 
@@ -540,19 +599,32 @@ endfun
 " ~~~~~~~~~~~~~~~~~~~~~~~~~~~ ACCESSORY FUNCTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 " ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+" Get settings depends on file type and user settings
+fun! s:GetSettings()
+	if has_key(s:ft_settings, &ft)
+		return s:ft_settings[&ft]
+	endif
+
+	let l:sets = deepcopy(s:settings)
+	call <SID>ApplyExternalSettings(l:sets, &ft)
+	let s:ft_settings[&ft] = l:sets
+	return l:sets
+endfun
+
+
+
 " Generate delimiters depends on option 'commentstring'
-fun! s:GenerateDelimiters()
+fun! s:GenerateDelimiters(commentstring)
 		return [
-		\		substitute(&commentstring, '\([^ \t]*\)\s*%s.*', '\1', ''),
-		\		substitute(&commentstring, '.*%s\s*\(.*\)',      '\1', 'g'),
+		\		substitute(a:commentstring, '\([^ \t]*\)\s*%s.*', '\1', ''),
+		\		substitute(a:commentstring, '.*%s\s*\(.*\)',      '\1', 'g'),
 		\ ]
 endfun
 
 
 " Get delimiters depends on file type and user settings
 fun! s:GetDelimiters_(isalt, closedef)
-	echom 'isalt: ' . a:isalt
-	let l:delims = get(s:delimiters, &filetype, {})
+	let l:delims = get(s:delimiters, &ft, {})
 
 	if a:isalt
 		if has_key(l:delims, 'leftAlt')
@@ -575,7 +647,7 @@ fun! s:GetDelimiters_(isalt, closedef)
 		return [ l:beg, l:end ]
 	endif
 
-	let l:ds  = <SID>GenerateDelimiters()
+	let l:ds  = <SID>GenerateDelimiters(&commentstring)
 	let l:beg = l:ds[0]
 	let l:end = len(l:ds[1]) ? l:ds[1] : a:closedef ? l:beg : ''
 	return [ l:beg, l:end ]
@@ -597,25 +669,27 @@ fun! s:GenerateComment(sets, text)
 	let l:ds = <sid>GetDelimiters(a:sets.type ==# 'alt', a:sets.closedef)
 	let l:beg = l:ds[0] . repeat(' ', a:sets.margin)
 	let l:end = !len(l:ds[1]) ? '' : repeat(' ', a:sets.margin) . l:ds[1]
+	let l:flr = a:sets.type !=# 'alt' || a:sets.altfiller ==# 'NONE' ?
+	\           a:sets.filler : a:sets.altfiller
 
 	" set center
 	if a:sets.align ==# 'left'
-		let l:cnt  = repeat(a:sets.filler, a:sets.padding)
+		let l:cnt  = repeat(l:flr, a:sets.padding)
 		let l:cnt .= repeat(' ', a:sets.bound)
 		let l:cnt .= a:text
 		let l:cnt .= repeat(' ', a:sets.bound)
 		let l:len  = a:sets.width    - strchars(l:beg) -
 		\            strchars(l:end) - strchars(l:cnt)
-		let l:cnt .= repeat(a:sets.filler, l:len)
+		let l:cnt .= repeat(l:flr, l:len)
 
 	elseif a:sets.align ==# 'right'
-		let l:cnt = repeat(a:sets.filler, a:sets.padding)
+		let l:cnt = repeat(l:flr, a:sets.padding)
 		let l:cnt = repeat(' ', a:sets.bound) . l:cnt
 		let l:cnt = a:text . l:cnt
 		let l:cnt = repeat(' ', a:sets.bound) . l:cnt
 		let l:len = a:sets.width    - strchars(l:beg) -
 		\           strchars(l:end) - strchars(l:cnt)
-		let l:cnt = repeat(a:sets.filler, l:len) . l:cnt
+		let l:cnt = repeat(l:flr, l:len) . l:cnt
 
 	elseif a:sets.align ==# 'center'
 		let l:cnt  = repeat(' ', a:sets.bound)
@@ -623,8 +697,8 @@ fun! s:GenerateComment(sets, text)
 		let l:cnt .= repeat(' ', a:sets.bound)
 		let l:len  = a:sets.width    - strchars(l:beg) -
 		\            strchars(l:end) - strchars(l:cnt)
-		let l:cnt  = repeat(a:sets.filler, l:len/2) . l:cnt .
-		\            repeat(a:sets.filler, l:len - l:len/2)
+		let l:cnt  = repeat(l:flr, l:len/2) . l:cnt .
+		\            repeat(l:flr, l:len - l:len/2)
 
 	else
 		throw 'Unknown alignement: ' . a:sets.align

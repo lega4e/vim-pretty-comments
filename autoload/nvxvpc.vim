@@ -22,10 +22,10 @@
 
 
 " ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ OBJECTS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ DELIMITERS MAP ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 " ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-let s:delimeters = {
+let s:delimiters = {
 	\	'aap':          { 'left': '#'                                         },
 	\	'abc':          { 'left': '%'                                         },
 	\	'acedb':        { 'left': '//', 'leftAlt': '/*', 'rightAlt': '*/'     },
@@ -199,7 +199,7 @@ let s:delimeters = {
 	\	'java':         { 'left': '//', 'leftAlt': '/*', 'rightAlt': '*/'     },
 	\	'javacc':       { 'left': '//', 'leftAlt': '/*', 'rightAlt': '*/'     },
 	\	'javascript':   { 'left': '//', 'leftAlt': '/*', 'rightAlt': '*/'     },
-	\	'javascriptreact':   { 'left': '//', 'leftAlt': '{/*', 'rightAlt': '*/}' },
+	\	'javascriptreact': { 'left': '//', 'leftAlt': '{/*', 'rightAlt': '*/}' },
 	\	'javascript.jquery': { 'left': '//', 'leftAlt': '/*', 'rightAlt': '*/'},
 	\	'jess':         { 'left': ';'                                         },
 	\	'jgraph':       { 'left': '(*', 'right': '*)'                         },
@@ -456,6 +456,27 @@ let s:delimeters = {
 	\	'z8a':          { 'left': ';'                                         },
 \}
 
+
+
+
+
+" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ DEFAULT SETTINGS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+"
+" prefixes to global variables that is used to configure plugin
+"
+" Use:
+"   let g:<s:setting_prfx>_<s:default_prfx>_<option_name> = <your_value>
+"
+" For example:
+"   let g:nvxvpc_default_filler = '*'
+"   let g:nvxvpc_default_bound  = 2
+"
+let s:setting_prfx = 'nvxvpc'
+let s:default_prfx = 'default'
+
 let s:standard = {
 	\	'type':      'default',
 	\	'closedef':  0,
@@ -467,8 +488,15 @@ let s:standard = {
 	\	'padding':   2,
 	\	'bound':     1,
 	\	'leveled':   0,
-	\	'levelstep': 4
+	\	'levelstep': 4,
 \}
+
+for s:key in keys(s:standard)
+	let s:setting = join(['g:' . s:setting_prfx, s:default_prfx, s:key], '_')
+	if exists(s:setting)
+		let s:standard[s:key] = eval(s:setting)
+	endif
+endfor
 
 if &textwidth > 0
 	let s:standard.width = &textwidth
@@ -485,10 +513,11 @@ endif
 fun! nvxvpc#InsertComment(...)
 	if a:0 ==# 1
 		let l:sets = a:1
+		call extend(l:sets, s:standard, 'keep')
 	elseif a:0 ==# 0
 		let l:sets = s:standard
 	else
-		throw "Invalid count of argument"
+		throw 'Invalid count of argument'
 	endif
 
 	let l:line = line('.')
@@ -511,8 +540,8 @@ endfun
 " ~~~~~~~~~~~~~~~~~~~~~~~~~~~ ACCESSORY FUNCTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 " ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-" Generate delimeters depends on option 'commentstring'
-fun! s:GenerateDelimeters()
+" Generate delimiters depends on option 'commentstring'
+fun! s:GenerateDelimiters()
 		return [
 		\		substitute(&commentstring, '\([^ \t]*\)\s*%s.*', '\1', ''),
 		\		substitute(&commentstring, '.*%s\s*\(.*\)',      '\1', 'g'),
@@ -520,10 +549,10 @@ fun! s:GenerateDelimeters()
 endfun
 
 
-" Get delimeters depends on file type and user settings
-fun! s:GetDelimeters_(isalt, closedef)
+" Get delimiters depends on file type and user settings
+fun! s:GetDelimiters_(isalt, closedef)
 	echom 'isalt: ' . a:isalt
-	let l:delims = get(s:delimeters, &filetype, {})
+	let l:delims = get(s:delimiters, &filetype, {})
 
 	if a:isalt
 		if has_key(l:delims, 'leftAlt')
@@ -531,7 +560,7 @@ fun! s:GetDelimeters_(isalt, closedef)
 			let l:end = get(l:delims, 'rightAlt', l:beg)
 			return [ l:beg, l:end ]
 		endif
-		return <SID>GetDelimeters(0, a:closedef)
+		return <SID>GetDelimiters(0, a:closedef)
 	endif
 
 	if has_key(l:delims, 'left')
@@ -546,26 +575,26 @@ fun! s:GetDelimeters_(isalt, closedef)
 		return [ l:beg, l:end ]
 	endif
 
-	let l:ds  = <SID>GenerateDelimeters()
+	let l:ds  = <SID>GenerateDelimiters()
 	let l:beg = l:ds[0]
 	let l:end = len(l:ds[1]) ? l:ds[1] : a:closedef ? l:beg : ''
 	return [ l:beg, l:end ]
 endfun
 
 
-" Get delimeters and trim
-fun! s:GetDelimeters(isalt, closedef)
-	let l:delims = <SID>GetDelimeters_(a:isalt, a:closedef)
+" Get delimiters and trim
+fun! s:GetDelimiters(isalt, closedef)
+	let l:delims = <SID>GetDelimiters_(a:isalt, a:closedef)
 	return [ trim(l:delims[0]), trim(l:delims[1]) ]
 endfun
 
 
 
-" Generate comment depends on user settings
+" Generate comment depends on file type, user settings
 " and text that must be placd into comment
 fun! s:GenerateComment(sets, text)
 	" set beg, end
-	let l:ds = <sid>GetDelimeters(a:sets.type ==# 'alt', a:sets.closedef)
+	let l:ds = <sid>GetDelimiters(a:sets.type ==# 'alt', a:sets.closedef)
 	let l:beg = l:ds[0] . repeat(' ', a:sets.margin)
 	let l:end = !len(l:ds[1]) ? '' : repeat(' ', a:sets.margin) . l:ds[1]
 

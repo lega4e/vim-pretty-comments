@@ -566,23 +566,32 @@ let s:styles = v:false
 
 fun! nvxvpc#insert_comment(...)
 	let l:style = ''
+	let l:text  = ''
 	if a:0 ==# 1
 		let l:style = a:1
+	elseif a:0 ==# 2
+		let l:style = a:1
+		let l:text  = a:2
 	elseif a:0 !=# 0
-		throw 'Invalid number of argument'
+		throw 'Invalid number of arguments'
 	endif
 
-	let l:sets = <SID>GetSettings(&ft, l:style)
+	let l:sets = s:GetSettings(&ft, l:style)
 	let l:line = line('.')
-	let l:text = trim(getline('.'))
-	let l:com  = <SID>GenerateComment(l:sets, l:text)
+
+	if !len(l:text)
+		let l:text = getline('.')
+	endif
+	let l:text = trim(l:text)
+
+	let l:com  = s:GenerateComment(l:sets, l:text)
 	call setline(l:line, l:com)
 endfun
 
 
 fun! nvxvpc#reload()
 	let l:globsets = deepcopy(s:default_settings)
-	call <SID>ApplyExternalSettings(l:globsets, '', '')
+	call s:ApplyExternalSettings(l:globsets, '', '')
 	let s:settings = { '' : { '' : l:globsets } }
 	let s:styles   = v:false
 endfun
@@ -619,7 +628,7 @@ fun! s:ApplyExternalSettings(dict, ft, style)
 	endif
 
 	if s:styles is v:false
-		call <SID>LoadGlobalStyles()
+		call s:LoadGlobalStyles()
 	endif
 
 	if has_key(s:styles, a:ft) && has_key(s:styles[a:ft], a:style)
@@ -646,7 +655,7 @@ endfun
 
 
 fun! s:AddStyle(style, sets)
-	let l:style = <SID>ParseStyle(a:style)
+	let l:style = s:ParseStyle(a:style)
 	let l:sets  = deepcopy(a:sets)
 	for l:ft in l:style.ft
 		if !has_key(s:styles, l:ft)
@@ -667,7 +676,7 @@ fun! s:LoadGlobalStyles()
 	let l:user_styles = eval(l:word)
 
 	for l:usrst in l:user_styles
-		call <SID>AddStyle(l:usrst[0], l:usrst[1])
+		call s:AddStyle(l:usrst[0], l:usrst[1])
 	endfor
 endfun
 
@@ -679,7 +688,7 @@ fun! s:GetSettings(ft, style)
 	endif
 
 	let l:sets = deepcopy(s:settings[''][''])
-	call <SID>ApplyExternalSettings(l:sets, a:ft, a:style)
+	call s:ApplyExternalSettings(l:sets, a:ft, a:style)
 	if !has_key(s:settings, a:ft)
 		let s:settings[a:ft] = {}
 	endif
@@ -710,7 +719,7 @@ fun! s:GetDelimiters_(isalt, closedef)
 			let l:end = get(l:delims, 'rightAlt', l:beg)
 			return [ l:beg, l:end ]
 		endif
-		return <SID>GetDelimiters(0, a:closedef)
+		return s:GetDelimiters(0, a:closedef)
 	endif
 
 	if has_key(l:delims, 'left')
@@ -725,7 +734,7 @@ fun! s:GetDelimiters_(isalt, closedef)
 		return [ l:beg, l:end ]
 	endif
 
-	let l:ds  = <SID>GenerateDelimiters(&commentstring)
+	let l:ds  = s:GenerateDelimiters(&commentstring)
 	let l:beg = l:ds[0]
 	let l:end = len(l:ds[1]) ? l:ds[1] : a:closedef ? l:beg : ''
 	return [ l:beg, l:end ]
@@ -734,7 +743,7 @@ endfun
 
 " Get delimiters and trim
 fun! s:GetDelimiters(isalt, closedef)
-	let l:delims = <SID>GetDelimiters_(a:isalt, a:closedef)
+	let l:delims = s:GetDelimiters_(a:isalt, a:closedef)
 	return [ trim(l:delims[0]), trim(l:delims[1]) ]
 endfun
 
@@ -746,7 +755,7 @@ endfun
 " and text that must be placd into comment
 fun! s:GenerateComment(sets, text)
 	" set beg, end
-	let l:ds = <sid>GetDelimiters(a:sets.type ==# 'alt', a:sets.closedef)
+	let l:ds = s:GetDelimiters(a:sets.type ==# 'alt', a:sets.closedef)
 	let l:beg = l:ds[0] . repeat(' ', a:sets.margin)
 	let l:end = !len(l:ds[1]) ? '' : repeat(' ', a:sets.margin) . l:ds[1]
 	let l:flr = a:sets.type !=# 'alt' || a:sets.altfiller ==# v:false ?
@@ -755,30 +764,39 @@ fun! s:GenerateComment(sets, text)
 	" set center
 	if a:sets.align ==# 'left'
 		let l:cnt  = repeat(l:flr, a:sets.padding)
-		let l:cnt .= repeat(' ', a:sets.bound)
-		let l:cnt .= a:text
-		let l:cnt .= repeat(' ', a:sets.bound)
+		if len(a:text)
+			let l:cnt .= repeat(' ', a:sets.bound)
+			let l:cnt .= a:text
+			let l:cnt .= repeat(' ', a:sets.bound)
+		endif
 		let l:len  = a:sets.width    - strchars(l:beg) -
-		\            strchars(l:end) - strchars(l:cnt)
+		           \ strchars(l:end) - strchars(l:cnt)
 		let l:cnt .= repeat(l:flr, l:len)
 
 	elseif a:sets.align ==# 'right'
 		let l:cnt = repeat(l:flr, a:sets.padding)
-		let l:cnt = repeat(' ', a:sets.bound) . l:cnt
-		let l:cnt = a:text . l:cnt
-		let l:cnt = repeat(' ', a:sets.bound) . l:cnt
+		if len(a:text)
+			let l:cnt = repeat(' ', a:sets.bound) . l:cnt
+			let l:cnt = a:text . l:cnt
+			let l:cnt = repeat(' ', a:sets.bound) . l:cnt
+		endif
 		let l:len = a:sets.width    - strchars(l:beg) -
-		\           strchars(l:end) - strchars(l:cnt)
+		          \ strchars(l:end) - strchars(l:cnt)
 		let l:cnt = repeat(l:flr, l:len) . l:cnt
 
 	elseif a:sets.align ==# 'center'
-		let l:cnt  = repeat(' ', a:sets.bound)
-		let l:cnt .= a:text
-		let l:cnt .= repeat(' ', a:sets.bound)
+		let l:cnt = ''
+
+		if len(a:text)
+			let l:cnt .= repeat(' ', a:sets.bound)
+			let l:cnt .= a:text
+			let l:cnt .= repeat(' ', a:sets.bound)
+		endif
+
 		let l:len  = a:sets.width    - strchars(l:beg) -
-		\            strchars(l:end) - strchars(l:cnt)
+		           \ strchars(l:end) - strchars(l:cnt)
 		let l:cnt  = repeat(l:flr, l:len/2) . l:cnt .
-		\            repeat(l:flr, l:len - l:len/2)
+		           \ repeat(l:flr, l:len - l:len/2)
 
 	else
 		throw 'Unknown alignement: ' . a:sets.align

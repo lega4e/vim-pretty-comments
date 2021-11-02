@@ -7,7 +7,6 @@ Tasks:
 - [ ] Feature: wrapped comments
 - [ ] Feature: replacement simple comments (recognize comments, extract text, execute)
 - [ ] Feature: handle spaces before text (levels)
-- [ ] Feature: handle empty line
 - [ ] Add detailed comments
 - [ ] Describe about core feature in RAEDME
 - [ ] Write documentation
@@ -19,3 +18,4 @@ Tasks:
 - [ ] Feature: headers
 - [X] Feature: profiles (different sets in same filetype with easy calling)
 - [X] Feature: reload settings
+- [X] Feature: handle empty line

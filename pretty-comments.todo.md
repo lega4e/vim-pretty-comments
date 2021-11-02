@@ -3,8 +3,6 @@ Tasks:
 - [ ] Correction: centering by total line width (add separate option?)
 - [ ] Feature: option 'fillright'
 - [ ] Feature: option 'level'
-- [ ] Feature: profiles (different sets in same filetype with easy calling)
-- [ ] Feature: reload settings
 - [ ] Feature: append after/before current line
 - [ ] Feature: wrapped comments
 - [ ] Feature: replacement simple comments (recognize comments, extract text, execute)
@@ -19,3 +17,5 @@ Tasks:
 - [ ] Feature: multiline comments
 - [ ] Feature: pictured comments (ascii arts)
 - [ ] Feature: headers
+- [X] Feature: profiles (different sets in same filetype with easy calling)
+- [X] Feature: reload settings

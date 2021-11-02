@@ -468,16 +468,16 @@ let s:delimiters = {
 " prefixes to global variables that is used to configure plugin
 "
 " Use:
-"   let g:<s:setting_word>_<s:default_word>_<option_name> = <your_value>
-"   let g:<s:setting_word>_<s:default_word>_<s:dictnry_word> = {
+"   let g:<s:namespc_word>_<s:default_word>_<option_name> = <your_value>
+"   let g:<s:namespc_word>_<s:default_word>_<s:dictnry_word> = {
 "   \ '<option_name>' : <value>,
 "   \ ...
 "   \ '<option_name>' : <value>,
 "   \}
 "
 " Or (for certain type of file):
-" 	let g:<s:setting_word>_<&filetype>_<option_name> = <your_value>
-"   let g:<s:setting_word>_<&filetype>_<s:dictnry_word> = {
+" 	let g:<s:namespc_word>_<&filetype>_<option_name> = <your_value>
+"   let g:<s:namespc_word>_<&filetype>_<s:dictnry_word> = {
 "   \ '<option_name>' : <value>,
 "   \ ...
 "   \ '<option_name>' : <value>,
@@ -504,28 +504,10 @@ let s:delimiters = {
 " 	}
 "
 
-let s:setting_word = 'nvxvpc'
+let s:namespc_word = 'nvxvpc'
 let s:default_word = 'default'
 let s:dictnry_word = 'settings'
-
-fun! s:ApplyExternalSettings(dict, ftname)
-	let l:dict = a:dict
-
-	let l:custsets = 'g:' . join([s:setting_word, a:ftname, s:dictnry_word], '_')
-	if exists(l:custsets)
-		let l:custsets = eval(l:custsets)
-		call extend(l:dict, l:custsets)
-	endif
-
-	for l:key in keys(l:dict)
-		let l:setting = 'g:' . join([s:setting_word, a:ftname, l:key], '_')
-		if exists(l:setting)
-			let l:dict[l:key] = eval(l:setting)
-		endif
-	endfor
-endfun
-
-
+let s:styles_word  = 'styles'
 
 " Options
 "
@@ -541,14 +523,14 @@ endfun
 " bound     - space before text
 " levelstep - indent per level
 
-let s:settings = {
+let s:default_settings = {
 	\	'type':      'def',
 	\	'closedef':  0,
 	\	'align':     'center',
 	\	'fillright': 1,
 	\	'width':     &tw > 0 ? &tw : 78,
 	\	'filler':    '~',
-	\	'altfiller': 'NONE',
+	\	'altfiller': v:false,
 	\	'margin':    1,
 	\	'padding':   2,
 	\	'bound':     1,
@@ -557,9 +539,22 @@ let s:settings = {
 
 " This dictionary will be filled when user call the
 " comment inserting in file that had't been called yet
-let s:ft_settings = { '' : s:settings }
+"
+" Format: {
+" 	'filetype' (str; empty for global) : {
+" 		'stylename' (str; empty for no style) : settings (dict)
+" 	}
+" }
+let s:settings = {}
 
-call <SID>ApplyExternalSettings(s:settings, 'default')
+" Styles loaded from global variable 'g:nvxvpc_styles' set by user
+"
+" Format: {
+" 	'filetype' (str; empty for global) : {
+" 		'stylename' (str; no empty) : settings (dict)
+" 	}
+" }
+let s:styles = v:false
 
 
 
@@ -569,26 +564,27 @@ call <SID>ApplyExternalSettings(s:settings, 'default')
 " ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ PUBLIC FUNCTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 " ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-fun! nvxvpc#InsertComment(...)
+fun! nvxvpc#insert_comment(...)
+	let l:style = ''
 	if a:0 ==# 1
-		let l:sets  = deepcopy(<SID>GetSettings())
-		call extend(l:sets, a:1)
-	elseif a:0 ==# 0
-		let l:sets = <SID>GetSettings()
-	else
+		let l:style = a:1
+	elseif a:0 !=# 0
 		throw 'Invalid number of argument'
 	endif
 
+	let l:sets = <SID>GetSettings(&ft, l:style)
 	let l:line = line('.')
 	let l:text = trim(getline('.'))
 	let l:com  = <SID>GenerateComment(l:sets, l:text)
-	call append(l:line, l:com)
-	normal! dd
+	call setline(l:line, l:com)
 endfun
 
 
-fun! nvxvpc#SetOption(key, value)
-	let s:settings[a:key] = a:value
+fun! nvxvpc#reload()
+	let l:globsets = deepcopy(s:default_settings)
+	call <SID>ApplyExternalSettings(l:globsets, '', '')
+	let s:settings = { '' : { '' : l:globsets } }
+	let s:styles   = v:false
 endfun
 
 
@@ -599,19 +595,101 @@ endfun
 " ~~~~~~~~~~~~~~~~~~~~~~~~~~~ ACCESSORY FUNCTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 " ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-" Get settings depends on file type and user settings
-fun! s:GetSettings()
-	if has_key(s:ft_settings, &ft)
-		return s:ft_settings[&ft]
+" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Settings ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+fun! s:ApplyExternalSettings(dict, ft, style)
+	let l:dict = a:dict
+	let l:ftname = len(a:ft) ? a:ft : s:default_word
+
+	let l:custsets = 'g:' . join([s:namespc_word, l:ftname, s:dictnry_word], '_')
+	if exists(l:custsets)
+		let l:custsets = eval(l:custsets)
+		call extend(l:dict, l:custsets)
 	endif
 
-	let l:sets = deepcopy(s:settings)
-	call <SID>ApplyExternalSettings(l:sets, &ft)
-	let s:ft_settings[&ft] = l:sets
+	for l:key in keys(l:dict)
+		let l:setting = 'g:' . join([s:namespc_word, l:ftname, l:key], '_')
+		if exists(l:setting)
+			let l:dict[l:key] = eval(l:setting)
+		endif
+	endfor
+
+	if !len(a:style)
+		return
+	endif
+
+	if s:styles is v:false
+		call <SID>LoadGlobalStyles()
+	endif
+
+	if has_key(s:styles, a:ft) && has_key(s:styles[a:ft], a:style)
+		call extend(l:dict, s:styles[a:ft][a:style])
+	elseif has_key(s:styles, '') && has_key(s:styles[''], a:style)
+		call extend(l:dict, s:styles[''][a:style])
+	endif
+endfun
+
+
+fun! s:ParseStyle(style)
+	let l:words = split(a:style, ':')
+
+	if !len(l:words)
+		return { 'ft' : [ '' ], 'style' : '' }
+	elseif len(l:words) == 1
+		return { 'ft' : [ '' ], 'style' : l:words[0] }
+	elseif len(l:words) == 2
+		return { 'ft' : split(l:words[0], ','), 'style' : l:words[1] }
+	else
+		throw "Style must be like 'filetype1,ft2:stylename' or simple 'stylename'"
+	endif
+endfun
+
+
+fun! s:AddStyle(style, sets)
+	let l:style = <SID>ParseStyle(a:style)
+	let l:sets  = deepcopy(a:sets)
+	for l:ft in l:style.ft
+		if !has_key(s:styles, l:ft)
+			let s:styles[l:ft] = {}
+		endif
+		let s:styles[l:ft][l:style.style] = l:sets
+	endfor
+endfun
+
+
+fun! s:LoadGlobalStyles()
+	let s:styles = {}
+
+	let l:word = 'g:' . s:namespc_word . '_' . s:styles_word
+	if !exists(l:word)
+		return
+	endif
+	let l:user_styles = eval(l:word)
+
+	for l:usrst in l:user_styles
+		call <SID>AddStyle(l:usrst[0], l:usrst[1])
+	endfor
+endfun
+
+
+" Get settings depends on file type and user settings
+fun! s:GetSettings(ft, style)
+	if has_key(s:settings, a:ft) && has_key(s:settings[a:ft], a:style)
+		return s:settings[a:ft][a:style]
+	endif
+
+	let l:sets = deepcopy(s:settings[''][''])
+	call <SID>ApplyExternalSettings(l:sets, a:ft, a:style)
+	if !has_key(s:settings, a:ft)
+		let s:settings[a:ft] = {}
+	endif
+	let s:settings[a:ft][a:style] = l:sets
 	return l:sets
 endfun
 
 
+
+" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Delimiters ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 " Generate delimiters depends on option 'commentstring'
 fun! s:GenerateDelimiters(commentstring)
@@ -662,6 +740,8 @@ endfun
 
 
 
+" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Core ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 " Generate comment depends on file type, user settings
 " and text that must be placd into comment
 fun! s:GenerateComment(sets, text)
@@ -669,7 +749,7 @@ fun! s:GenerateComment(sets, text)
 	let l:ds = <sid>GetDelimiters(a:sets.type ==# 'alt', a:sets.closedef)
 	let l:beg = l:ds[0] . repeat(' ', a:sets.margin)
 	let l:end = !len(l:ds[1]) ? '' : repeat(' ', a:sets.margin) . l:ds[1]
-	let l:flr = a:sets.type !=# 'alt' || a:sets.altfiller ==# 'NONE' ?
+	let l:flr = a:sets.type !=# 'alt' || a:sets.altfiller ==# v:false ?
 	\           a:sets.filler : a:sets.altfiller
 
 	" set center
@@ -704,9 +784,18 @@ fun! s:GenerateComment(sets, text)
 		throw 'Unknown alignement: ' . a:sets.align
 	endif
 
-
 	return l:beg . l:cnt . l:end
 endfun
+
+
+
+
+
+" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ INITIALIZATION ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+call nvxvpc#reload()
 
 
 

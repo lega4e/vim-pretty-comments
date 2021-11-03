@@ -511,17 +511,19 @@ let s:styles_word  = 'styles'
 
 " Options
 "
-" type      - values: def, alt (for cpp: // or /* %s */)
-" closedef  - if 1 def comment closed: # --- %s --- #
-" align     - values: left, right, center
-" fillright - if 0 comment look like this: # --- %s
-" width     - totally width of comment
-" filler    - if filler = '~' then: # ~~~ %s ~~~
-" altfiller - filler for type 'alt'
-" margin    - space after comment opening sign
-" padding   - number of filler signs after margin spaces
-" bound     - space before text
-" levelstep - indent per level
+" type           - values: def, alt (for cpp: // or /* %s */)
+" closedef       - if 1 def comment closed: # --- %s --- #
+" align          - values: left, right, center
+" localcentering - if 0 #  ---- %s -------, 1: #  ------ %s -----
+" fillright      - if 0 comment look like this: # --- %s
+" fillleft       - if 0 comment look like this: #     %s ---
+" width          - totally width of comment
+" filler         - if filler = '~' then: # ~~~ %s ~~~
+" altfiller      - filler for type 'alt'
+" margin         - space after comment opening sign
+" padding        - number of filler signs after margin spaces
+" bound          - space before text
+" levelstep      - indent per level
 
 let s:default_settings = {
 	\	'type':           'def',
@@ -529,6 +531,7 @@ let s:default_settings = {
 	\	'align':          'center',
 	\	'localcentering': 0,
 	\	'fillright':      1,
+	\	'fillleft':       1,
 	\	'width':          &tw > 0 ? &tw : 78,
 	\	'filler':         '~',
 	\	'altfiller':      v:false,
@@ -756,11 +759,13 @@ endfun
 " and text that must be placd into comment
 fun! s:GenerateComment(sets, text)
 	" set beg, end
-	let l:ds = s:GetDelimiters(a:sets.type ==# 'alt', a:sets.closedef)
-	let l:beg = l:ds[0] . repeat(' ', a:sets.margin)
-	let l:end = !len(l:ds[1]) ? '' : repeat(' ', a:sets.margin) . l:ds[1]
-	let l:flr = a:sets.type !=# 'alt' || a:sets.altfiller ==# v:false ?
-	\           a:sets.filler : a:sets.altfiller
+	let l:ds       = s:GetDelimiters(a:sets.type ==# 'alt', a:sets.closedef)
+	let l:beg      = l:ds[0] . repeat(' ', a:sets.margin)
+	let l:end      = !len(l:ds[1]) ? '' : repeat(' ', a:sets.margin) . l:ds[1]
+	let l:flr      = a:sets.type !=# 'alt' || a:sets.altfiller ==# v:false ?
+	               \ a:sets.filler : a:sets.altfiller
+	let l:flrleft  = a:sets.fillleft  || !len(a:text) ? l:flr : ' '
+	let l:flrright = a:sets.fillright || !len(a:text) ? l:flr : ' '
 
 	" set center
 	if a:sets.align ==# 'left'
@@ -770,9 +775,10 @@ fun! s:GenerateComment(sets, text)
 			let l:cnt .= a:text
 			let l:cnt .= repeat(' ', a:sets.bound)
 		endif
+
 		let l:len  = a:sets.width    - strchars(l:beg) -
 		           \ strchars(l:end) - strchars(l:cnt)
-		let l:cnt .= repeat(l:flr, l:len)
+		let l:cnt .= repeat(l:flrright, l:len)
 
 	elseif a:sets.align ==# 'right'
 		let l:cnt = repeat(l:flr, a:sets.padding)
@@ -781,9 +787,10 @@ fun! s:GenerateComment(sets, text)
 			let l:cnt = a:text . l:cnt
 			let l:cnt = repeat(' ', a:sets.bound) . l:cnt
 		endif
+
 		let l:len = a:sets.width    - strchars(l:beg) -
 		          \ strchars(l:end) - strchars(l:cnt)
-		let l:cnt = repeat(l:flr, l:len) . l:cnt
+		let l:cnt = repeat(l:flrleft, l:len) . l:cnt
 
 	elseif a:sets.align ==# 'center'
 		let l:cnt = ''
@@ -796,19 +803,19 @@ fun! s:GenerateComment(sets, text)
 
 		if !a:sets.localcentering
 			let l:len  = a:sets.width - strchars(l:cnt)
-			let l:cnt  = repeat(l:flr, l:len/2 - strchars(l:beg)) . l:cnt
-			let l:cnt .= repeat(l:flr, l:len - l:len/2 - strchars(l:end))
+			let l:cnt  = repeat(l:flrleft, l:len/2 - strchars(l:beg)) . l:cnt
+			let l:cnt .= repeat(l:flrright, l:len - l:len/2 - strchars(l:end))
 		else
 			let l:len  = a:sets.width    - strchars(l:beg) -
 			           \ strchars(l:end) - strchars(l:cnt)
-			let l:cnt  = repeat(l:flr, l:len/2) . l:cnt
-			let l:cnt .= repeat(l:flr, l:len - l:len/2)
+			let l:cnt  = repeat(l:flrleft, l:len/2) . l:cnt
+			let l:cnt .= repeat(l:flrright, l:len - l:len/2)
 		endif
 	else
 		throw 'Unknown alignement: ' . a:sets.align
 	endif
 
-	return l:beg . l:cnt . l:end
+	return trim(l:beg . l:cnt . l:end)
 endfun
 
 

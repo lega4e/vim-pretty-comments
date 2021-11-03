@@ -1,6 +1,5 @@
 Tasks:
 
-- [ ] Feature: option 'fillright'
 - [ ] Feature: option 'level'
 - [ ] Feature: append after/before current line
 - [ ] Feature: wrapped comments
@@ -19,3 +18,4 @@ Tasks:
 - [X] Feature: reload settings
 - [X] Feature: handle empty line
 - [X] Correction: centering by total line width (add separate option?)
+- [X] Feature: option 'fillright'

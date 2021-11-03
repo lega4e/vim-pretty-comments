@@ -528,6 +528,10 @@ let s:styles_word  = 'styles'
 let s:default_settings = {
 	\	'type':           'def',
 	\	'closedef':       0,
+	\	'header':         0,
+	\	'headersets':     {},
+	\	'footer':         0,
+	\	'footersets':     {},
 	\	'align':          'center',
 	\	'localcentering': 0,
 	\	'fillright':      1,
@@ -569,8 +573,10 @@ let s:styles = v:false
 " ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 fun! nvxvpc#insert_comment(...)
+	" check arguments and get settings
 	let l:style = ''
 	let l:text  = ''
+
 	if a:0 ==# 1
 		let l:style = a:1
 	elseif a:0 ==# 2
@@ -581,15 +587,25 @@ fun! nvxvpc#insert_comment(...)
 	endif
 
 	let l:sets = s:GetSettings(&ft, l:style)
-	let l:line = line('.')
 
+	" get text under cursor if needed
 	if !len(l:text)
 		let l:text = getline('.')
 	endif
 	let l:text = trim(l:text)
 
-	let l:com  = s:GenerateComment(l:sets, l:text)
-	call setline(l:line, l:com)
+	" save cursor position
+	let l:curpos = getcurpos()
+
+	" generate and insert comment
+	let l:comlines = s:GenerateComment(l:sets, l:text)
+	let l:cntcomn  = l:comlines[1]
+	call deletebufline(buffer_name(), l:curpos[1])
+	call append(l:curpos[1]-1, l:comlines[1:])
+
+	" recover cursor position
+	let l:curpos[1] += l:comlines[0] - 1
+	call cursor(l:curpos[1:])
 endfun
 
 
@@ -755,6 +771,34 @@ endfun
 
 " ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Core ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+fun! s:GetHeaderAndFooter(sets)
+	let l:result = []
+	let l:stages = [ 'header', 'footer' ]
+
+	for l:stage in l:stages
+		if !a:sets[l:stage]
+			call add(l:result, [])
+			continue
+		endif
+
+		" get settings and extend it by special settings
+		let l:sets = deepcopy(a:sets)
+		call extend(l:sets, a:sets[l:stage.'sets'])
+
+		" this is needed for stop recursion
+		for l:sstage in l:stages
+			if !has_key(a:sets[l:stage.'sets'], l:sstage)
+				let l:sets[l:sstage] = 0
+			endif
+		endfor
+
+		let l:comment = s:GenerateComment(l:sets, '')[1:]
+		call add(l:result, repeat(l:comment, a:sets[l:stage]))
+	endfor
+
+	return l:result
+endfun
+
 " Generate comment depends on file type, user settings
 " and text that must be placd into comment
 fun! s:GenerateComment(sets, text)
@@ -767,7 +811,7 @@ fun! s:GenerateComment(sets, text)
 	let l:flrleft  = a:sets.fillleft  || !len(a:text) ? l:flr : ' '
 	let l:flrright = a:sets.fillright || !len(a:text) ? l:flr : ' '
 
-	" set center
+	" set center with various alignement
 	if a:sets.align ==# 'left'
 		let l:cnt  = repeat(l:flr, a:sets.padding)
 		if len(a:text)
@@ -793,29 +837,41 @@ fun! s:GenerateComment(sets, text)
 		let l:cnt = repeat(l:flrleft, l:len) . l:cnt
 
 	elseif a:sets.align ==# 'center'
+		" construct text with margin
 		let l:cnt = ''
-
 		if len(a:text)
 			let l:cnt .= repeat(' ', a:sets.bound)
 			let l:cnt .= a:text
 			let l:cnt .= repeat(' ', a:sets.bound)
 		endif
 
+		" calculate lengthes
 		if !a:sets.localcentering
-			let l:len  = a:sets.width - strchars(l:cnt)
-			let l:cnt  = repeat(l:flrleft, l:len/2 - strchars(l:beg)) . l:cnt
-			let l:cnt .= repeat(l:flrright, l:len - l:len/2 - strchars(l:end))
+			let l:len       = a:sets.width    - strchars(l:cnt)
+			let l:lenbefore = l:len/2         - strchars(l:beg)
+			let l:lenafter  = l:len - l:len/2 - strchars(l:end)
 		else
-			let l:len  = a:sets.width    - strchars(l:beg) -
-			           \ strchars(l:end) - strchars(l:cnt)
-			let l:cnt  = repeat(l:flrleft, l:len/2) . l:cnt
-			let l:cnt .= repeat(l:flrright, l:len - l:len/2)
+			let l:len       = a:sets.width - strchars(l:beg . l:cnt . l:end)
+			let l:lenbefore = l:len/2
+			let l:lenafter  = l:len - l:len/2
 		endif
+
+		let l:cntbefore  = repeat(l:flr, a:sets.padding)
+		let l:cntbefore .= repeat(l:flrleft, l:lenbefore - a:sets.padding)
+
+		let l:cntafter   = repeat(l:flrright, l:lenafter - a:sets.padding)
+		let l:cntafter  .= repeat(len(l:end) ? l:flr : l:flrright, a:sets.padding)
+
+		let l:cnt = l:cntbefore . l:cnt . l:cntafter
+
 	else
 		throw 'Unknown alignement: ' . a:sets.align
 	endif
 
-	return trim(l:beg . l:cnt . l:end)
+	let l:around = s:GetHeaderAndFooter(a:sets)
+
+	return [ len(l:around[0]) + 1 ]        + l:around[0] +
+	     \ [ trim(l:beg . l:cnt . l:end) ] + l:around[1]
 endfun
 
 

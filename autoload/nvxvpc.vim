@@ -524,17 +524,18 @@ let s:styles_word  = 'styles'
 " levelstep - indent per level
 
 let s:default_settings = {
-	\	'type':      'def',
-	\	'closedef':  0,
-	\	'align':     'center',
-	\	'fillright': 1,
-	\	'width':     &tw > 0 ? &tw : 78,
-	\	'filler':    '~',
-	\	'altfiller': v:false,
-	\	'margin':    1,
-	\	'padding':   2,
-	\	'bound':     1,
-	\	'levelstep': 4,
+	\	'type':           'def',
+	\	'closedef':       0,
+	\	'align':          'center',
+	\	'localcentering': 0,
+	\	'fillright':      1,
+	\	'width':          &tw > 0 ? &tw : 78,
+	\	'filler':         '~',
+	\	'altfiller':      v:false,
+	\	'margin':         1,
+	\	'padding':        2,
+	\	'bound':          1,
+	\	'levelstep':      4,
 \}
 
 " This dictionary will be filled when user call the
@@ -793,11 +794,16 @@ fun! s:GenerateComment(sets, text)
 			let l:cnt .= repeat(' ', a:sets.bound)
 		endif
 
-		let l:len  = a:sets.width    - strchars(l:beg) -
-		           \ strchars(l:end) - strchars(l:cnt)
-		let l:cnt  = repeat(l:flr, l:len/2) . l:cnt .
-		           \ repeat(l:flr, l:len - l:len/2)
-
+		if !a:sets.localcentering
+			let l:len  = a:sets.width - strchars(l:cnt)
+			let l:cnt  = repeat(l:flr, l:len/2 - strchars(l:beg)) . l:cnt
+			let l:cnt .= repeat(l:flr, l:len - l:len/2 - strchars(l:end))
+		else
+			let l:len  = a:sets.width    - strchars(l:beg) -
+			           \ strchars(l:end) - strchars(l:cnt)
+			let l:cnt  = repeat(l:flr, l:len/2) . l:cnt
+			let l:cnt .= repeat(l:flr, l:len - l:len/2)
+		endif
 	else
 		throw 'Unknown alignement: ' . a:sets.align
 	endif

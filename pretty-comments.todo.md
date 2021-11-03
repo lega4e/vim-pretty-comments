@@ -1,6 +1,5 @@
 Tasks:
 
-- [ ] Correction: centering by total line width (add separate option?)
 - [ ] Feature: option 'fillright'
 - [ ] Feature: option 'level'
 - [ ] Feature: append after/before current line
@@ -19,3 +18,4 @@ Tasks:
 - [X] Feature: profiles (different sets in same filetype with easy calling)
 - [X] Feature: reload settings
 - [X] Feature: handle empty line
+- [X] Correction: centering by total line width (add separate option?)

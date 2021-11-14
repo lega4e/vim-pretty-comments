@@ -21,9 +21,9 @@
 
 
 
-" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ DELIMITERS MAP ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ "
+" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ DELIMITERS MAP ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ "
+" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ "
 
 let s:delimiters = {
 	\	'aap':          { 'left': '#'                                         },
@@ -460,9 +460,9 @@ let s:delimiters = {
 
 
 
-" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ DEFAULT SETTINGS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ "
+" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ DEFAULT SETTINGS ~~~~~~~~~~~~~~~~~~~~~~~~~~~ "
+" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ "
 
 "
 " prefixes to global variables that is used to configure plugin
@@ -518,7 +518,7 @@ let s:styles_word  = 'styles'
 " fillright      - if 0 comment look like this: # --- %s
 " fillleft       - if 0 comment look like this: #     %s ---
 " width          - totally width of comment
-" filler         - if filler = '~' then: # ~~~ %s ~~~
+" filler         - if filler = '~' then: # ~~~ %s ~ "
 " altfiller      - filler for type 'alt'
 " margin         - space after comment opening sign
 " padding        - number of filler signs after margin spaces
@@ -526,6 +526,7 @@ let s:styles_word  = 'styles'
 " levelstep      - indent per level
 
 let s:default_settings = {
+	\	'extends':        v:false,
 	\	'type':           'def',
 	\	'closedef':       0,
 	\	'header':         0,
@@ -568,9 +569,9 @@ let s:styles = v:false
 
 
 
-" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ PUBLIC FUNCTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ "
+" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ PUBLIC FUNCTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~ "
+" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ "
 
 fun! nvxvpc#insert_comment(...)
 	" check arguments and get settings
@@ -620,14 +621,14 @@ endfun
 
 
 
-" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-" ~~~~~~~~~~~~~~~~~~~~~~~~~~~ ACCESSORY FUNCTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ "
+" ~~~~~~~~~~~~~~~~~~~~~~~~~~~ ACCESSORY FUNCTIONS ~~~~~~~~~~~~~~~~~~~~~~~~~~ "
+" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ "
 
-" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Settings ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Settings ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ "
 
 fun! s:ApplyExternalSettings(dict, ft, style)
-	let l:dict = a:dict
+	let l:dict   = a:dict
 	let l:ftname = len(a:ft) ? a:ft : s:default_word
 
 	let l:custsets = 'g:' . join([s:namespc_word, l:ftname, s:dictnry_word], '_')
@@ -647,15 +648,31 @@ fun! s:ApplyExternalSettings(dict, ft, style)
 		return
 	endif
 
+	" set style
 	if s:styles is v:false
 		call s:LoadGlobalStyles()
 	endif
 
-	if has_key(s:styles, a:ft) && has_key(s:styles[a:ft], a:style)
-		call extend(l:dict, s:styles[a:ft][a:style])
-	elseif has_key(s:styles, '') && has_key(s:styles[''], a:style)
-		call extend(l:dict, s:styles[''][a:style])
+	if has_key(s:styles, '') && has_key(s:styles[''], a:style)
+		call s:ApplyStyle(l:dict, s:styles[''][a:style])
 	endif
+
+	if a:ft !=# '' && has_key(s:styles, a:ft) && has_key(s:styles[a:ft], a:style)
+		call s:ApplyStyle(l:dict, s:styles[a:ft][a:style])
+	endif
+endfun
+
+
+fun! s:ApplyStyle(dict, style)
+	let l:dict = a:dict
+
+	if has_key(a:style, 'extends') && a:style.extends !=# v:false
+		let l:parm = s:ParseStyle(a:style.extends)
+		let l:sets = s:GetSettings(parm.ft[0], parm.style)
+		call extend(l:dict, l:sets)
+	endif
+
+	call extend(l:dict, a:style)
 endfun
 
 
@@ -718,7 +735,7 @@ endfun
 
 
 
-" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Delimiters ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Delimiters ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ "
 
 " Generate delimiters depends on option 'commentstring'
 fun! s:GenerateDelimiters(commentstring)
@@ -769,7 +786,7 @@ endfun
 
 
 
-" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Core ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Core ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ "
 
 fun! s:GetHeaderAndFooter(sets)
 	let l:result = []
@@ -878,9 +895,9 @@ endfun
 
 
 
-" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ INITIALIZATION ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ "
+" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ INITIALIZATION ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ "
+" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ "
 
 call nvxvpc#reload()
 

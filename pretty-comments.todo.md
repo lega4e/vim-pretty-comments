@@ -1,9 +1,9 @@
 Tasks:
 
 - [ ] Correction: if line too long?
+- [ ] Feature: multicharacter filler
 - [ ] Fuature: preset styles named 'nvx_*'
 - [ ] Feature: option 'level'
-- [ ] Feature: append after/before current line
 - [ ] Feature: replacement simple comments (recognize comments, extract text, execute)
 - [ ] Feature: handle spaces before text (levels)
 - [ ] Add detailed comments
@@ -21,3 +21,4 @@ Tasks:
 - [X] Correction: centering by total line width (add separate option?)
 - [X] Feature: option 'fillright'
 - [X] Feature: wrapped comments
+- [X] Feature: extend setting other style in new style
